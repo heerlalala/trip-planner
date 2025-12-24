@@ -264,12 +264,35 @@ h4 {
 .form-group {
     margin-bottom: var(--space-md);
     position: relative;
-    z-index: 10;
 }
 
-/* First FROM field needs higher z-index so its dropdown overlays the TO field */
-.form-group:first-of-type {
-    z-index: 20;
+/* Route card needs high z-index so its dropdowns overlay other cards */
+.route-card {
+    z-index: 1000 !important;
+    overflow: visible !important;
+}
+
+/* Origin group - highest z-index so its dropdown overlays the TO field */
+.origin-group {
+    position: relative;
+    z-index: 100;
+}
+
+/* Destination group - lower z-index than origin */
+.destination-group {
+    position: relative;
+    z-index: 50;
+    margin-top: 12px;
+}
+
+/* Origin dropdown - appears in front of everything */
+.origin-dropdown {
+    z-index: 10000 !important;
+}
+
+/* Destination dropdown - appears in front of everything below */
+.destination-dropdown {
+    z-index: 9000 !important;
 }
 
 .form-label {

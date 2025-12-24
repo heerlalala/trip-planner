@@ -40,30 +40,30 @@
 
       <div class="sidebar-content">
         <!-- Search Destination -->
-        <div class="glass-card">
+        <div class="glass-card route-card">
           <div class="glass-card-header">
             <div class="icon">📍</div>
             <h3>Plan Your Route</h3>
           </div>
           <!-- From (Origin) -->
-          <div class="form-group">
+          <div class="form-group origin-group">
             <label class="form-label">From</label>
             <div class="search-input-wrapper">
-              <span class="search-icon">�</span>
+              <span class="search-icon">🟢</span>
               <input type="text" id="origin-search" class="form-input" placeholder="Starting location..."
                 autocomplete="off">
             </div>
-            <div id="origin-search-results" class="search-results"></div>
+            <div id="origin-search-results" class="search-results origin-dropdown"></div>
           </div>
           <!-- To (Destination) -->
-          <div class="form-group" style="margin-top: 12px;">
+          <div class="form-group destination-group">
             <label class="form-label">To</label>
             <div class="search-input-wrapper">
               <span class="search-icon">🔴</span>
               <input type="text" id="destination-search" class="form-input" placeholder="Where are you going?"
                 autocomplete="off">
             </div>
-            <div id="destination-search-results" class="search-results"></div>
+            <div id="destination-search-results" class="search-results destination-dropdown"></div>
           </div>
         </div>
 
