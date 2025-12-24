@@ -218,6 +218,13 @@ h4 {
     padding: var(--space-md);
     margin-bottom: var(--space-md);
     transition: all var(--transition-normal);
+    position: relative;
+    z-index: 1;
+}
+
+/* First card (Plan Your Route) needs higher z-index for dropdown visibility */
+.glass-card:first-child {
+    z-index: 100;
 }
 
 .glass-card:hover {
