@@ -18,8 +18,8 @@ const CONFIG = {
         url: 'https://overpass-api.de/api/interpreter'
     },
     poi: {
-        searchRadius: 5000, // meters
-        maxResults: 30
+        searchRadius: 10000, // 10km radius for better coverage
+        maxResults: 50
     }
 };
 
@@ -720,10 +720,16 @@ async function explorePlaces() {
     const center = state.route.stops[0] || state.currentDestination;
 
     try {
-        // Fetch POIs for each selected category
-        for (const category of state.selectedCategories) {
-            await fetchPOIs(center.lat, center.lon, category);
-        }
+        // Sync widget checkboxes with sidebar selections before fetching
+        syncWidgetWithSidebar();
+
+        // Fetch POIs for all selected categories in parallel for speed
+        const fetchPromises = Array.from(state.selectedCategories).map(category =>
+            fetchPOIs(center.lat, center.lon, category)
+        );
+        await Promise.all(fetchPromises);
+
+        console.log(`Found ${state.markers.pois.length} POIs`);
 
         // Show POI filter widget
         document.getElementById('poi-filter-widget').style.display = 'block';
@@ -884,6 +890,16 @@ function toggleCategoryMarkers(category, visible) {
                 marker.getElement()?.style.setProperty('pointer-events', 'none');
             }
         }
+    });
+}
+
+// Sync widget checkboxes with sidebar category selections
+function syncWidgetWithSidebar() {
+    document.querySelectorAll('.widget-checkbox').forEach(widget => {
+        const category = widget.dataset.category;
+        const input = widget.querySelector('input');
+        const isSelected = state.selectedCategories.has(category);
+        input.checked = isSelected;
     });
 }
 
