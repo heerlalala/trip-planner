@@ -1161,6 +1161,115 @@ h4 {
 }
 
 /* ========================================
+   ITINERARY PANEL
+======================================== */
+.itinerary-panel {
+    margin-top: var(--space-md);
+}
+
+.itinerary-content {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: var(--space-sm);
+}
+
+.itinerary-day {
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-md);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.itinerary-day:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.itinerary-day-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-sm);
+    font-weight: 600;
+    color: var(--primary-light);
+}
+
+.itinerary-day-number {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 50%;
+    font-size: 0.8rem;
+    color: white;
+}
+
+.itinerary-place {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.itinerary-place:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(4px);
+}
+
+.itinerary-place-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.itinerary-place-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.itinerary-place-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.itinerary-place-type {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.itinerary-route-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm);
+    margin-bottom: var(--space-md);
+    background: rgba(99, 102, 241, 0.15);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85rem;
+}
+
+.itinerary-route-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.itinerary-empty {
+    text-align: center;
+    padding: var(--space-lg);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ========================================
    LOADING STATES
 ======================================== */
 .loading {

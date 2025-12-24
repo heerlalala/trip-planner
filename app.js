@@ -753,6 +753,9 @@ async function explorePlaces() {
         // Switch to satellite view for better visualization
         switchToSatelliteView();
 
+        // Generate and display itinerary
+        generateItinerary(searchPoints);
+
     } catch (error) {
         console.error('Error fetching POIs:', error);
         alert('Error fetching places. Please try again.');
@@ -941,6 +944,138 @@ function zoomToFitPOIs(center) {
             maxZoom: 15
         });
     }
+}
+
+// ========================================
+// ITINERARY GENERATION
+// ========================================
+
+function generateItinerary(searchPoints) {
+    const itineraryPanel = document.getElementById('itinerary-panel');
+    const itineraryContent = document.getElementById('itinerary-content');
+
+    if (!itineraryPanel || !itineraryContent) return;
+
+    // Calculate route distance (approximate)
+    const routeDistance = calculateRouteDistance();
+    const tripDays = state.trip.days;
+
+    // Get all POI markers info
+    const pois = state.markers.pois.map(marker => ({
+        name: marker.options.icon?.options?.html?.match(/>([^<]+)</)?.[1] || 'Place',
+        category: marker.options.category,
+        latlng: marker.getLatLng(),
+        icon: POI_TYPES[marker.options.category]?.icon || '📍'
+    }));
+
+    // Show panel
+    itineraryPanel.style.display = 'block';
+
+    // Build itinerary HTML
+    let html = '';
+
+    // Route info header
+    html += `
+        <div class="itinerary-route-info">
+            <div class="itinerary-route-stat">📍 ${state.route.stops.length} stops</div>
+            <div class="itinerary-route-stat">📏 ${routeDistance} km</div>
+            <div class="itinerary-route-stat">📅 ${tripDays} days</div>
+        </div>
+    `;
+
+    if (pois.length === 0) {
+        html += '<div class="itinerary-empty">No places found to add to itinerary</div>';
+        itineraryContent.innerHTML = html;
+        return;
+    }
+
+    // Distribute POIs across days
+    const poisPerDay = Math.ceil(pois.length / tripDays);
+
+    for (let day = 1; day <= tripDays; day++) {
+        const startIdx = (day - 1) * poisPerDay;
+        const dayPois = pois.slice(startIdx, startIdx + poisPerDay);
+
+        if (dayPois.length === 0) continue;
+
+        html += `
+            <div class="itinerary-day">
+                <div class="itinerary-day-header">
+                    <span class="itinerary-day-number">${day}</span>
+                    <span>Day ${day}</span>
+                </div>
+        `;
+
+        // Add route start point for first day
+        if (day === 1 && state.route.stops.length > 0) {
+            html += `
+                <div class="itinerary-place">
+                    <span class="itinerary-place-icon">🟢</span>
+                    <div class="itinerary-place-info">
+                        <div class="itinerary-place-name">${state.route.stops[0].name || 'Start'}</div>
+                        <div class="itinerary-place-type">Starting Point</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Add day's places
+        dayPois.forEach(poi => {
+            const typeName = POI_TYPES[poi.category]?.name || 'Place';
+            html += `
+                <div class="itinerary-place">
+                    <span class="itinerary-place-icon">${poi.icon}</span>
+                    <div class="itinerary-place-info">
+                        <div class="itinerary-place-name">${poi.name}</div>
+                        <div class="itinerary-place-type">${typeName}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        // Add destination for last day
+        if (day === tripDays && state.route.stops.length > 1) {
+            const lastStop = state.route.stops[state.route.stops.length - 1];
+            html += `
+                <div class="itinerary-place">
+                    <span class="itinerary-place-icon">🔴</span>
+                    <div class="itinerary-place-info">
+                        <div class="itinerary-place-name">${lastStop.name || 'Destination'}</div>
+                        <div class="itinerary-place-type">Final Destination</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        html += '</div>';
+    }
+
+    itineraryContent.innerHTML = html;
+}
+
+function calculateRouteDistance() {
+    if (state.route.stops.length < 2) return 0;
+
+    let totalDistance = 0;
+    for (let i = 0; i < state.route.stops.length - 1; i++) {
+        const from = state.route.stops[i];
+        const to = state.route.stops[i + 1];
+        totalDistance += haversineDistance(from.lat, from.lon, to.lat, to.lon);
+    }
+
+    return Math.round(totalDistance);
+}
+
+function haversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
 
 // ========================================
