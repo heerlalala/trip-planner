@@ -86,7 +86,7 @@ const state = {
     },
     trip: {
         days: 3,
-        budget: 2
+        budget: 25000
     },
     search: {
         timeout: null,
@@ -370,10 +370,11 @@ function handleBudgetChange(e) {
     const value = parseInt(e.target.value);
     state.trip.budget = value;
 
-    // Update active label
-    document.querySelectorAll('.budget-label').forEach(label => {
-        label.classList.toggle('active', parseInt(label.dataset.level) === value);
-    });
+    // Update displayed budget value
+    const budgetDisplay = document.getElementById('budget-value');
+    if (budgetDisplay) {
+        budgetDisplay.textContent = value.toLocaleString('en-IN');
+    }
 
     // Filter visible POIs
     filterPOIsByBudget();

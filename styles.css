@@ -487,6 +487,42 @@ h4 {
     transform: scale(1.15);
 }
 
+/* Budget Display - Current Value */
+.budget-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-md);
+}
+
+.budget-min-value,
+.budget-max-value {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.budget-current {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Numeric Labels Under Slider */
+.budget-labels-numeric {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--space-sm);
+}
+
+.budget-labels-numeric span {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* Legacy Budget Labels (keeping for compatibility) */
 .budget-labels {
     display: flex;
     justify-content: space-between;

@@ -110,24 +110,18 @@
             <h3>Budget Range</h3>
           </div>
           <div class="budget-slider-container">
-            <input type="range" id="budget-slider" class="budget-slider" min="1" max="4" value="2">
-            <div class="budget-labels">
-              <span class="budget-label" data-level="1">
-                <span>₹</span>
-                <span>Economy</span>
-              </span>
-              <span class="budget-label active" data-level="2">
-                <span>₹₹</span>
-                <span>Moderate</span>
-              </span>
-              <span class="budget-label" data-level="3">
-                <span>₹₹₹</span>
-                <span>Premium</span>
-              </span>
-              <span class="budget-label" data-level="4">
-                <span>₹₹₹₹</span>
-                <span>Luxury</span>
-              </span>
+            <div class="budget-display">
+              <span class="budget-min-value">₹0</span>
+              <span class="budget-current">₹<span id="budget-value">25000</span></span>
+              <span class="budget-max-value">₹50000</span>
+            </div>
+            <input type="range" id="budget-slider" class="budget-slider" min="0" max="50000" step="1000" value="25000">
+            <div class="budget-labels-numeric">
+              <span>₹0</span>
+              <span>₹12.5K</span>
+              <span>₹25K</span>
+              <span>₹37.5K</span>
+              <span>₹50K</span>
             </div>
           </div>
         </div>
