@@ -256,6 +256,8 @@ h4 {
 ======================================== */
 .form-group {
     margin-bottom: var(--space-md);
+    position: relative;
+    z-index: 10;
 }
 
 .form-label {
@@ -318,7 +320,7 @@ h4 {
     box-shadow: var(--shadow-lg);
     max-height: 300px;
     overflow-y: auto;
-    z-index: 1000;
+    z-index: 9999;
 }
 
 .search-result-item {
