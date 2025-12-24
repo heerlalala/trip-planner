@@ -716,10 +716,23 @@ async function explorePlaces() {
     // Clear existing POI markers
     clearPOIMarkers();
 
-    // Get all search points (all stops on the route, or just the destination)
-    const searchPoints = state.route.stops.length > 0
-        ? state.route.stops
-        : [state.currentDestination];
+    // Get all search points (stops + intermediate points along the route)
+    let searchPoints = [];
+
+    if (state.route.stops.length > 0) {
+        // Add all stops
+        searchPoints = [...state.route.stops];
+
+        // Add intermediate points along the route between each stop
+        for (let i = 0; i < state.route.stops.length - 1; i++) {
+            const from = state.route.stops[i];
+            const to = state.route.stops[i + 1];
+            const intermediates = getIntermediatePoints(from, to, 3); // 3 points between each stop
+            searchPoints.push(...intermediates);
+        }
+    } else if (state.currentDestination) {
+        searchPoints = [state.currentDestination];
+    }
 
     try {
         // Sync widget checkboxes with sidebar selections before fetching
@@ -1076,6 +1089,20 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
         Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
+}
+
+// Get intermediate points along a route between two stops
+function getIntermediatePoints(from, to, numPoints) {
+    const points = [];
+    for (let i = 1; i <= numPoints; i++) {
+        const fraction = i / (numPoints + 1);
+        points.push({
+            lat: from.lat + (to.lat - from.lat) * fraction,
+            lon: from.lon + (to.lon - from.lon) * fraction,
+            name: `En Route (${Math.round(fraction * 100)}%)`
+        });
+    }
+    return points;
 }
 
 // ========================================
