@@ -704,6 +704,9 @@ async function explorePlaces() {
         // Filter by budget
         filterPOIsByBudget();
 
+        // Zoom to fit all POI markers
+        zoomToFitPOIs(center);
+
     } catch (error) {
         console.error('Error fetching POIs:', error);
     } finally {
@@ -783,29 +786,53 @@ function createPOIMarker(poi, category) {
         category // Store category for filtering
     }).addTo(state.map);
 
-    // Create popup content
+    // Get additional info from OSM tags
+    const address = poi.tags?.['addr:street'] || poi.tags?.['addr:full'] || '';
+    const locality = poi.tags?.['addr:suburb'] || poi.tags?.['addr:city'] || poi.tags?.['addr:district'] || '';
+    const cuisine = poi.tags?.cuisine || '';
+    const phone = poi.tags?.phone || poi.tags?.['contact:phone'] || '';
+    const website = poi.tags?.website || poi.tags?.['contact:website'] || '';
+    const openingHours = poi.tags?.opening_hours || '';
+
+    // Generate random but consistent price range for demo
+    const priceRange = budget <= 2 ? '₹200 - ₹500' : budget === 3 ? '₹500 - ₹1500' : '₹1500+';
+    const rating = (3.5 + Math.random() * 1.5).toFixed(1);
+    const reviewCount = Math.floor(Math.random() * 500) + 50;
+
+    // Create enhanced popup content
     const popupContent = `
-    <div class="poi-popup">
-      <div class="poi-popup-header">
-        <div class="poi-popup-icon ${category}">${poiType.icon}</div>
-        <div class="poi-popup-info">
-          <h4>${name}</h4>
-          <div class="poi-popup-type">${poiType.name}</div>
-        </div>
+    <div class="poi-popup enhanced">
+      <div class="poi-popup-image" style="background: linear-gradient(135deg, ${poiType.color}40, ${poiType.color}20);">
+        <span class="poi-popup-emoji">${poiType.icon}</span>
       </div>
-      <div class="poi-popup-body">
-        <div class="poi-rating">
-          <span class="stars">★★★★☆</span>
-          <span class="count">(${Math.floor(Math.random() * 500) + 50})</span>
+      <div class="poi-popup-content">
+        <div class="poi-popup-header">
+          <div class="poi-popup-info">
+            <h4>${name}</h4>
+            <div class="poi-popup-type">${poiType.name}${cuisine ? ' • ' + cuisine.split(';')[0] : ''}</div>
+          </div>
         </div>
-        <span class="poi-budget-badge ${budgetInfo.class}">
-          ${budgetInfo.symbol} ${budgetInfo.name}
-        </span>
+        <div class="poi-popup-details">
+          ${locality ? `<div class="poi-detail"><span>📍</span> ${locality}${address ? ', ' + address : ''}</div>` : ''}
+          <div class="poi-detail"><span>💰</span> ${priceRange} for two</div>
+          ${openingHours ? `<div class="poi-detail"><span>🕐</span> ${openingHours}</div>` : ''}
+          ${phone ? `<div class="poi-detail"><span>📞</span> ${phone}</div>` : ''}
+        </div>
+        <div class="poi-popup-footer">
+          <div class="poi-rating">
+            <span class="rating-badge">★ ${rating}</span>
+            <span class="count">(${reviewCount} reviews)</span>
+          </div>
+          <span class="poi-budget-badge ${budgetInfo.class}">
+            ${budgetInfo.symbol}
+          </span>
+        </div>
+        ${website ? `<a href="${website}" target="_blank" class="poi-website-btn">Visit Website →</a>` : ''}
       </div>
     </div>
   `;
 
-    marker.bindPopup(popupContent);
+    marker.bindPopup(popupContent, { maxWidth: 300, className: 'enhanced-popup' });
     state.markers.pois.push(marker);
 }
 
@@ -828,6 +855,35 @@ function toggleCategoryMarkers(category, visible) {
             }
         }
     });
+}
+
+function zoomToFitPOIs(center) {
+    if (state.markers.pois.length === 0) {
+        // No POIs found, zoom to center
+        state.map.flyTo([center.lat, center.lon], 14, { duration: 1 });
+        return;
+    }
+
+    // Create bounds that include all POI markers and route stops
+    const allLatLngs = [];
+
+    // Add POI markers
+    state.markers.pois.forEach(marker => {
+        allLatLngs.push(marker.getLatLng());
+    });
+
+    // Add route stops
+    state.route.stops.forEach(stop => {
+        allLatLngs.push([stop.lat, stop.lon]);
+    });
+
+    if (allLatLngs.length > 0) {
+        const bounds = L.latLngBounds(allLatLngs);
+        state.map.flyToBounds(bounds.pad(0.1), {
+            duration: 1.2,
+            maxZoom: 15
+        });
+    }
 }
 
 // ========================================
