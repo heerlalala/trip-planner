@@ -182,29 +182,43 @@
     <main class="map-container">
       <div id="map"></div>
 
-      <!-- Map Legend Overlay -->
-      <div class="map-overlay map-overlay-top-right" id="map-legend" style="display: none;">
-        <div class="map-legend">
-          <div class="legend-item">
-            <span class="legend-dot" style="background: var(--poi-food);"></span>
+      <!-- POI Filter Widget Overlay -->
+      <div class="map-overlay map-overlay-top-right poi-filter-widget" id="poi-filter-widget" style="display: none;">
+        <div class="widget-header">
+          <span>🎯 Filter Places</span>
+          <button class="widget-close" id="widget-close">✕</button>
+        </div>
+        <div class="widget-body">
+          <label class="widget-checkbox" data-category="food">
+            <input type="checkbox" checked>
+            <span class="checkbox-icon" style="background: var(--poi-food);">🍽️</span>
             <span>Restaurants</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" style="background: var(--poi-cafe);"></span>
+          </label>
+          <label class="widget-checkbox" data-category="cafe">
+            <input type="checkbox" checked>
+            <span class="checkbox-icon" style="background: var(--poi-cafe);">☕</span>
             <span>Cafes</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" style="background: var(--poi-shop);"></span>
+          </label>
+          <label class="widget-checkbox" data-category="shop">
+            <input type="checkbox">
+            <span class="checkbox-icon" style="background: var(--poi-shop);">🛍️</span>
             <span>Shops</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" style="background: var(--poi-luxury);"></span>
+          </label>
+          <label class="widget-checkbox" data-category="luxury">
+            <input type="checkbox">
+            <span class="checkbox-icon" style="background: var(--poi-luxury);">💎</span>
             <span>Luxury</span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot" style="background: var(--poi-landmark);"></span>
+          </label>
+          <label class="widget-checkbox" data-category="landmark">
+            <input type="checkbox" checked>
+            <span class="checkbox-icon" style="background: var(--poi-landmark);">🏛️</span>
             <span>Landmarks</span>
-          </div>
+          </label>
+          <label class="widget-checkbox" data-category="hotel">
+            <input type="checkbox">
+            <span class="checkbox-icon" style="background: var(--accent-green);">🏨</span>
+            <span>Hotels</span>
+          </label>
         </div>
       </div>
     </main>

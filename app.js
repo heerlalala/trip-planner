@@ -243,6 +243,25 @@ function initEventListeners() {
             state.map.invalidateSize();
         }
     });
+
+    // POI Filter Widget - Close button
+    const widgetClose = document.getElementById('widget-close');
+    if (widgetClose) {
+        widgetClose.addEventListener('click', () => {
+            document.getElementById('poi-filter-widget').style.display = 'none';
+        });
+    }
+
+    // POI Filter Widget - Checkbox toggles
+    document.querySelectorAll('.widget-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('click', (e) => {
+            const category = checkbox.dataset.category;
+            const input = checkbox.querySelector('input');
+
+            // Toggle visibility of markers for this category
+            toggleCategoryMarkers(category, input.checked);
+        });
+    });
 }
 
 // ========================================
@@ -679,8 +698,8 @@ async function explorePlaces() {
             await fetchPOIs(center.lat, center.lon, category);
         }
 
-        // Show legend
-        document.getElementById('map-legend').style.display = 'block';
+        // Show POI filter widget
+        document.getElementById('poi-filter-widget').style.display = 'block';
 
         // Filter by budget
         filterPOIsByBudget();
@@ -760,7 +779,8 @@ function createPOIMarker(poi, category) {
 
     const marker = L.marker([poi.lat, poi.lon], {
         icon,
-        budget // Store budget level for filtering
+        budget, // Store budget level for filtering
+        category // Store category for filtering
     }).addTo(state.map);
 
     // Create popup content
@@ -794,6 +814,20 @@ function clearPOIMarkers() {
         state.map.removeLayer(marker);
     });
     state.markers.pois = [];
+}
+
+function toggleCategoryMarkers(category, visible) {
+    state.markers.pois.forEach(marker => {
+        if (marker.options.category === category) {
+            if (visible) {
+                marker.setOpacity(1);
+                marker.getElement()?.style.setProperty('pointer-events', 'auto');
+            } else {
+                marker.setOpacity(0);
+                marker.getElement()?.style.setProperty('pointer-events', 'none');
+            }
+        }
+    });
 }
 
 // ========================================

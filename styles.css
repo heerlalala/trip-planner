@@ -971,6 +971,95 @@ h4 {
     border-radius: 50%;
 }
 
+/* POI Filter Widget */
+.poi-filter-widget {
+    min-width: 180px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(99, 102, 241, 0.2);
+    border-bottom: var(--border-glass);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.widget-close {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all var(--transition-fast);
+}
+
+.widget-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.widget-body {
+    padding: var(--space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.widget-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 6px 8px;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.widget-checkbox:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.widget-checkbox input {
+    display: none;
+}
+
+.widget-checkbox input:checked+.checkbox-icon {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.widget-checkbox input:not(:checked)+.checkbox-icon {
+    opacity: 0.3;
+    transform: scale(0.9);
+}
+
+.widget-checkbox input:checked~span:last-child {
+    color: var(--text-primary);
+}
+
+.checkbox-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    transition: all var(--transition-fast);
+}
+
 /* ========================================
    LOADING STATES
 ======================================== */
