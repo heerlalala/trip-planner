@@ -11,7 +11,7 @@ const CONFIG = {
         attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
     },
     search: {
-        debounceMs: 300,
+        debounceMs: 100,  // Reduced for faster search
         nominatimUrl: 'https://nominatim.openstreetmap.org/search'
     },
     overpass: {
@@ -205,6 +205,32 @@ function initEventListeners() {
 
     // Explore button
     document.getElementById('explore-btn').addEventListener('click', explorePlaces);
+
+    // Sidebar toggle (collapse/expand)
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebarExpand = document.getElementById('sidebar-expand');
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            sidebarExpand?.classList.add('visible');
+            // Refresh map size after sidebar collapse
+            setTimeout(() => {
+                if (state.map) state.map.invalidateSize();
+            }, 350);
+        });
+    }
+
+    if (sidebarExpand) {
+        sidebarExpand.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            sidebarExpand.classList.remove('visible');
+            // Refresh map size after sidebar expand
+            setTimeout(() => {
+                if (state.map) state.map.invalidateSize();
+            }, 350);
+        });
+    }
 
     // Handle window resize
     window.addEventListener('resize', () => {

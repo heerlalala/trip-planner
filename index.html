@@ -29,11 +29,16 @@
       <header class="sidebar-header">
         <div class="header-top">
           <h1>🧭 Voyage</h1>
-          <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-            <span class="hamburger-line"></span>
-          </button>
+          <div class="header-buttons">
+            <button class="sidebar-toggle-btn" id="sidebar-toggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+              ◀
+            </button>
+            <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+              <span class="hamburger-line"></span>
+              <span class="hamburger-line"></span>
+              <span class="hamburger-line"></span>
+            </button>
+          </div>
         </div>
         <p>Plan your perfect adventure</p>
       </header>
@@ -203,6 +208,11 @@
         </div>
       </div>
     </main>
+
+    <!-- Floating button to expand sidebar when collapsed -->
+    <button class="sidebar-expand-btn" id="sidebar-expand" aria-label="Expand sidebar" title="Expand sidebar">
+      ▶
+    </button>
   </div>
 
   <!-- Leaflet JS -->
