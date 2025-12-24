@@ -716,20 +716,30 @@ async function explorePlaces() {
     // Clear existing POI markers
     clearPOIMarkers();
 
-    // Get center point (first stop or current destination)
-    const center = state.route.stops[0] || state.currentDestination;
+    // Get all search points (all stops on the route, or just the destination)
+    const searchPoints = state.route.stops.length > 0
+        ? state.route.stops
+        : [state.currentDestination];
 
     try {
         // Sync widget checkboxes with sidebar selections before fetching
         syncWidgetWithSidebar();
 
-        // Fetch POIs for all selected categories in parallel for speed
-        const fetchPromises = Array.from(state.selectedCategories).map(category =>
-            fetchPOIs(center.lat, center.lon, category)
-        );
+        // Fetch POIs for all selected categories at ALL route points
+        const fetchPromises = [];
+        for (const point of searchPoints) {
+            for (const category of state.selectedCategories) {
+                fetchPromises.push(fetchPOIs(point.lat, point.lon, category));
+            }
+        }
         await Promise.all(fetchPromises);
 
-        console.log(`Found ${state.markers.pois.length} POIs`);
+        console.log(`Found ${state.markers.pois.length} POIs at ${searchPoints.length} locations`);
+
+        // Show message if no POIs found
+        if (state.markers.pois.length === 0) {
+            alert('No places found in this area. This region may have limited data in OpenStreetMap. Try searching in a major city.');
+        }
 
         // Show POI filter widget
         document.getElementById('poi-filter-widget').style.display = 'block';
@@ -738,13 +748,14 @@ async function explorePlaces() {
         filterPOIsByBudget();
 
         // Zoom to fit all POI markers
-        zoomToFitPOIs(center);
+        zoomToFitPOIs(searchPoints[0]);
 
         // Switch to satellite view for better visualization
         switchToSatelliteView();
 
     } catch (error) {
         console.error('Error fetching POIs:', error);
+        alert('Error fetching places. Please try again.');
     } finally {
         btn.innerHTML = '<span>✨</span> Explore Places';
         btn.disabled = false;
