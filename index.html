@@ -1,53 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Plan your perfect trip with interactive maps, route planning, and discover amazing places along the way. From economy to luxury, find spots that match your budget.">
+  <meta name="description"
+    content="Plan your perfect trip with interactive maps, route planning, and discover amazing places along the way. From economy to luxury, find spots that match your budget.">
   <title>Voyage - Smart Trip Planner</title>
-  
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap"
+    rel="stylesheet">
+
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
+
   <!-- App Styles -->
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <div class="app-container">
     <!-- Sidebar -->
     <aside class="sidebar">
       <header class="sidebar-header">
-        <h1>🧭 Voyage</h1>
+        <div class="header-top">
+          <h1>🧭 Voyage</h1>
+          <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+          </button>
+        </div>
         <p>Plan your perfect adventure</p>
       </header>
-      
+
       <div class="sidebar-content">
         <!-- Search Destination -->
         <div class="glass-card">
           <div class="glass-card-header">
             <div class="icon">📍</div>
-            <h3>Where to?</h3>
+            <h3>Plan Your Route</h3>
           </div>
+          <!-- From (Origin) -->
           <div class="form-group">
+            <label class="form-label">From</label>
             <div class="search-input-wrapper">
-              <span class="search-icon">🔍</span>
-              <input 
-                type="text" 
-                id="destination-search" 
-                class="form-input" 
-                placeholder="Search destination..."
-                autocomplete="off"
-              >
+              <span class="search-icon">�</span>
+              <input type="text" id="origin-search" class="form-input" placeholder="Starting location..."
+                autocomplete="off">
             </div>
-            <div id="search-results" class="search-results"></div>
+            <div id="origin-search-results" class="search-results"></div>
+          </div>
+          <!-- To (Destination) -->
+          <div class="form-group" style="margin-top: 12px;">
+            <label class="form-label">To</label>
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔴</span>
+              <input type="text" id="destination-search" class="form-input" placeholder="Where are you going?"
+                autocomplete="off">
+            </div>
+            <div id="destination-search-results" class="search-results"></div>
           </div>
         </div>
-        
+
         <!-- Trip Duration -->
         <div class="glass-card">
           <div class="glass-card-header">
@@ -63,7 +82,7 @@
             <button class="duration-btn" id="days-increase">+</button>
           </div>
         </div>
-        
+
         <!-- Route Stops -->
         <div class="glass-card">
           <div class="glass-card-header">
@@ -83,7 +102,7 @@
             <span>+</span> Add a stop
           </button>
         </div>
-        
+
         <!-- Budget Filter -->
         <div class="glass-card">
           <div class="glass-card-header">
@@ -91,14 +110,7 @@
             <h3>Budget Range</h3>
           </div>
           <div class="budget-slider-container">
-            <input 
-              type="range" 
-              id="budget-slider" 
-              class="budget-slider" 
-              min="1" 
-              max="4" 
-              value="2"
-            >
+            <input type="range" id="budget-slider" class="budget-slider" min="1" max="4" value="2">
             <div class="budget-labels">
               <span class="budget-label" data-level="1">
                 <span>₹</span>
@@ -119,7 +131,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- POI Categories -->
         <div class="glass-card">
           <div class="glass-card-header">
@@ -159,18 +171,18 @@
             </label>
           </div>
         </div>
-        
+
         <!-- Explore Button -->
         <button class="btn btn-gradient btn-block" id="explore-btn">
           <span>✨</span> Explore Places
         </button>
       </div>
     </aside>
-    
+
     <!-- Map -->
     <main class="map-container">
       <div id="map"></div>
-      
+
       <!-- Map Legend Overlay -->
       <div class="map-overlay map-overlay-top-right" id="map-legend" style="display: none;">
         <div class="map-legend">
@@ -198,11 +210,12 @@
       </div>
     </main>
   </div>
-  
+
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
+
   <!-- App Script -->
   <script src="app.js"></script>
 </body>
+
 </html>

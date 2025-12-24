@@ -1,7 +1,3 @@
-/**
- * Voyage - Smart Trip Planner
- * Main Application Logic
- */
 
 // ========================================
 // CONFIGURATION
@@ -94,10 +90,12 @@ const state = {
     },
     search: {
         timeout: null,
-        results: []
+        originResults: [],
+        destinationResults: []
     },
     selectedCategories: new Set(['food', 'cafe', 'landmark']),
     isAddingStop: false,
+    currentOrigin: null,
     currentDestination: null
 };
 
@@ -143,13 +141,50 @@ function initMap() {
 }
 
 function initEventListeners() {
+    // Mobile menu toggle
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', () => {
+            mobileMenuToggle.classList.toggle('active');
+            sidebar.classList.toggle('expanded');
+        });
+
+        // Close sidebar when clicking on map (mobile)
+        document.getElementById('map').addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                mobileMenuToggle.classList.remove('active');
+                sidebar.classList.remove('expanded');
+            }
+        });
+
+        // Close sidebar after selecting a destination
+        const originalSelectDestination = selectDestination;
+        window.selectDestination = function (result) {
+            originalSelectDestination(result);
+            if (window.innerWidth <= 768) {
+                mobileMenuToggle.classList.remove('active');
+                sidebar.classList.remove('expanded');
+            }
+        };
+    }
+
+    // Origin search
+    const originInput = document.getElementById('origin-search');
+    originInput.addEventListener('input', debounce((e) => handleSearch(e, 'origin'), CONFIG.search.debounceMs));
+    originInput.addEventListener('focus', () => showSearchResults('origin'));
+
     // Destination search
-    const searchInput = document.getElementById('destination-search');
-    searchInput.addEventListener('input', debounce(handleSearch, CONFIG.search.debounceMs));
-    searchInput.addEventListener('focus', () => showSearchResults());
+    const destinationInput = document.getElementById('destination-search');
+    destinationInput.addEventListener('input', debounce((e) => handleSearch(e, 'destination'), CONFIG.search.debounceMs));
+    destinationInput.addEventListener('focus', () => showSearchResults('destination'));
+
+    // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.search-input-wrapper') && !e.target.closest('.search-results')) {
-            hideSearchResults();
+            hideSearchResults('origin');
+            hideSearchResults('destination');
         }
     });
 
@@ -170,17 +205,29 @@ function initEventListeners() {
 
     // Explore button
     document.getElementById('explore-btn').addEventListener('click', explorePlaces);
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            sidebar.classList.remove('expanded');
+            mobileMenuToggle?.classList.remove('active');
+        }
+        // Invalidate map size on resize
+        if (state.map) {
+            state.map.invalidateSize();
+        }
+    });
 }
 
 // ========================================
 // SEARCH FUNCTIONALITY
 // ========================================
 
-async function handleSearch(e) {
+async function handleSearch(e, type = 'destination') {
     const query = e.target.value.trim();
 
     if (query.length < 3) {
-        hideSearchResults();
+        hideSearchResults(type);
         return;
     }
 
@@ -190,15 +237,20 @@ async function handleSearch(e) {
         );
         const results = await response.json();
 
-        state.search.results = results;
-        displaySearchResults(results);
+        if (type === 'origin') {
+            state.search.originResults = results;
+        } else {
+            state.search.destinationResults = results;
+        }
+        displaySearchResults(results, type);
     } catch (error) {
         console.error('Search error:', error);
     }
 }
 
-function displaySearchResults(results) {
-    const container = document.getElementById('search-results');
+function displaySearchResults(results, type = 'destination') {
+    const containerId = type === 'origin' ? 'origin-search-results' : 'destination-search-results';
+    const container = document.getElementById(containerId);
 
     if (results.length === 0) {
         container.innerHTML = '<div class="search-result-item">No results found</div>';
@@ -207,8 +259,8 @@ function displaySearchResults(results) {
     }
 
     container.innerHTML = results.map((result, index) => `
-    <div class="search-result-item" data-index="${index}">
-      <span class="search-result-icon">📍</span>
+    <div class="search-result-item" data-index="${index}" data-type="${type}">
+      <span class="search-result-icon">${type === 'origin' ? '🟢' : '🔴'}</span>
       <div class="search-result-info">
         <div class="search-result-name">${result.display_name.split(',')[0]}</div>
         <div class="search-result-address">${result.display_name}</div>
@@ -222,43 +274,74 @@ function displaySearchResults(results) {
     container.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('click', () => {
             const index = parseInt(item.dataset.index);
-            selectDestination(state.search.results[index]);
+            const itemType = item.dataset.type;
+            const results = itemType === 'origin' ? state.search.originResults : state.search.destinationResults;
+            selectLocation(results[index], itemType);
         });
     });
 }
 
-function showSearchResults() {
-    const container = document.getElementById('search-results');
-    if (state.search.results.length > 0) {
+function showSearchResults(type = 'destination') {
+    const containerId = type === 'origin' ? 'origin-search-results' : 'destination-search-results';
+    const container = document.getElementById(containerId);
+    const results = type === 'origin' ? state.search.originResults : state.search.destinationResults;
+    if (results.length > 0) {
         container.style.display = 'block';
     }
 }
 
-function hideSearchResults() {
-    document.getElementById('search-results').style.display = 'none';
+function hideSearchResults(type = 'destination') {
+    const containerId = type === 'origin' ? 'origin-search-results' : 'destination-search-results';
+    document.getElementById(containerId).style.display = 'none';
 }
 
-function selectDestination(result) {
+function selectLocation(result, type = 'destination') {
     const lat = parseFloat(result.lat);
     const lon = parseFloat(result.lon);
     const name = result.display_name.split(',')[0];
 
-    // Update search input
-    document.getElementById('destination-search').value = name;
-    hideSearchResults();
+    // Update appropriate search input
+    const inputId = type === 'origin' ? 'origin-search' : 'destination-search';
+    document.getElementById(inputId).value = name;
+    hideSearchResults(type);
 
-    // Store current destination
-    state.currentDestination = { lat, lon, name };
+    if (type === 'origin') {
+        // Handle origin selection - add as first stop
+        state.currentOrigin = { lat, lon, name };
 
-    // Pan to location
-    state.map.flyTo([lat, lon], 13, { duration: 1.5 });
+        if (state.route.stops.length === 0) {
+            addStop(lat, lon, name, 'start');
+        } else {
+            updateStop(0, lat, lon, name);
+        }
 
-    // Add or update first stop
-    if (state.route.stops.length === 0) {
-        addStop(lat, lon, name, 'start');
+        // Pan to show the origin
+        state.map.flyTo([lat, lon], 13, { duration: 1.5 });
     } else {
-        updateStop(0, lat, lon, name);
+        // Handle destination selection
+        state.currentDestination = { lat, lon, name };
+
+        // Add as the last stop (or second stop if only origin exists)
+        if (state.route.stops.length === 0) {
+            // No origin set, add destination as first stop
+            addStop(lat, lon, name, 'start');
+        } else if (state.route.stops.length === 1) {
+            // Origin set, add destination as end
+            addStop(lat, lon, name, 'end');
+        } else {
+            // Update the last stop with new destination
+            const lastIndex = state.route.stops.length - 1;
+            updateStop(lastIndex, lat, lon, name);
+        }
+
+        // Pan to location
+        state.map.flyTo([lat, lon], 13, { duration: 1.5 });
     }
+}
+
+// Keep selectDestination for backward compatibility
+function selectDestination(result) {
+    selectLocation(result, 'destination');
 }
 
 // ========================================
