@@ -117,11 +117,21 @@ function initMap() {
         zoomControl: true
     });
 
-    // Add tile layer (OpenStreetMap)
-    L.tileLayer(CONFIG.map.tileLayer, {
+    // Create tile layers
+    state.streetLayer = L.tileLayer(CONFIG.map.tileLayer, {
         attribution: CONFIG.map.attribution,
         maxZoom: 19
-    }).addTo(state.map);
+    });
+
+    // Satellite layer (using ESRI World Imagery - free for non-commercial use)
+    state.satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri &mdash; Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics',
+        maxZoom: 19
+    });
+
+    // Add street layer by default
+    state.streetLayer.addTo(state.map);
+    state.currentLayer = 'street';
 
     // Map click handler for adding stops
     state.map.on('click', handleMapClick);
@@ -137,6 +147,23 @@ function initMap() {
                 console.log('Geolocation not available, using default center');
             }
         );
+    }
+}
+
+// Function to switch map view
+function switchToSatelliteView() {
+    if (state.currentLayer !== 'satellite') {
+        state.map.removeLayer(state.streetLayer);
+        state.satelliteLayer.addTo(state.map);
+        state.currentLayer = 'satellite';
+    }
+}
+
+function switchToStreetView() {
+    if (state.currentLayer !== 'street') {
+        state.map.removeLayer(state.satelliteLayer);
+        state.streetLayer.addTo(state.map);
+        state.currentLayer = 'street';
     }
 }
 
@@ -706,6 +733,9 @@ async function explorePlaces() {
 
         // Zoom to fit all POI markers
         zoomToFitPOIs(center);
+
+        // Switch to satellite view for better visualization
+        switchToSatelliteView();
 
     } catch (error) {
         console.error('Error fetching POIs:', error);
