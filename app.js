@@ -871,39 +871,73 @@ async function explorePlaces() {
 async function fetchPOIsInBulk(searchPoints, categories) {
     if (searchPoints.length === 0 || categories.length === 0) return;
 
-    // Build union block of queries
-    let unionBlock = "";
-    const uniqueLocations = [];
-    
-    // De-duplicate locations slightly (if stops are extremely close, e.g. < 500m, skip to avoid redundant subqueries)
-    searchPoints.forEach(pt => {
-        const isDuplicate = uniqueLocations.some(u => haversineDistance(u.lat, u.lon, pt.lat, pt.lon) < 0.5);
-        if (!isDuplicate) {
-            uniqueLocations.push(pt);
-        }
+    // 1. Calculate bounding box dimensions
+    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+    searchPoints.forEach(p => {
+        if (p.lat < minLat) minLat = p.lat;
+        if (p.lat > maxLat) maxLat = p.lat;
+        if (p.lon < minLon) minLon = p.lon;
+        if (p.lon > maxLon) maxLon = p.lon;
     });
 
-    for (const point of uniqueLocations) {
-        for (const category of categories) {
-            const poiType = POI_TYPES[category];
-            if (!poiType) continue;
-            poiType.tags.forEach(tag => {
-                const [key, value] = tag.split('=');
-                // Use slightly lower search radius if we have many points to keep it super fast
-                const radius = uniqueLocations.length > 2 ? 1500 : (CONFIG.poi?.searchRadius || 2500);
-                unionBlock += `  node["${key}"="${value}"](around:${radius},${point.lat.toFixed(6)},${point.lon.toFixed(6)});\n`;
+    const latDiff = maxLat - minLat;
+    const lonDiff = maxLon - minLon;
+    const boxArea = latDiff * lonDiff; // Area in square degrees
+
+    let unionBlock = "";
+
+    // If the search area is compact (e.g. under ~200km or a local destination search),
+    // use a single, highly optimized Bounding Box query!
+    // Bounding box queries utilize 2D database index ranges and are up to 10x faster than distance math (around)
+    if (boxArea <= 1.5 && searchPoints.length > 1) {
+        console.log(`Searching via optimized Bounding Box (Area: ${boxArea.toFixed(4)} sq deg)`);
+        
+        // Add a padding of approx. 4km (0.04 degrees) around the corridor
+        const pad = 0.04;
+        const bboxScope = `(${minLat - pad},${minLon - pad},${maxLat + pad},${maxLon + pad})`;
+        
+        categories.forEach(category => {
+            const statements = getQLStatementsForCategory(category, bboxScope);
+            statements.forEach(stmt => {
+                unionBlock += `  ${stmt}\n`;
             });
-        }
+        });
+    } else {
+        // For long-distance trips or single stops, search only around the actual stops
+        // (origin, destination, and user-defined stops) to keep it fast and relevant.
+        console.log("Searching via localized stop radii");
+        const uniqueLocations = [];
+        
+        // Limit search to stops, removing intermediate path points for efficiency
+        const stopsOnly = state.route.stops.length > 0 ? state.route.stops : searchPoints;
+        
+        stopsOnly.forEach(pt => {
+            const isDuplicate = uniqueLocations.some(u => haversineDistance(u.lat, u.lon, pt.lat, pt.lon) < 1.0);
+            if (!isDuplicate) {
+                uniqueLocations.push(pt);
+            }
+        });
+
+        uniqueLocations.forEach(point => {
+            const radius = uniqueLocations.length > 2 ? 1500 : (CONFIG.poi?.searchRadius || 2500);
+            const scope = `(around:${radius},${point.lat.toFixed(6)},${point.lon.toFixed(6)})`;
+            categories.forEach(category => {
+                const statements = getQLStatementsForCategory(category, scope);
+                statements.forEach(stmt => {
+                    unionBlock += `  ${stmt}\n`;
+                });
+            });
+        });
     }
 
     if (!unionBlock) return;
 
     const query = `
-    [out:json][timeout:25];
+    [out:json][timeout:15];
     (
       ${unionBlock}
     );
-    out body 80;
+    out body 100;
   `;
 
     // Try primary and fallback Overpass servers
@@ -939,7 +973,7 @@ async function fetchPOIsInBulk(searchPoints, categories) {
     }
 
     if (success && data && data.elements) {
-        // Track unique nodes to prevent duplicate markers at overlapping regions
+        // Track unique nodes to prevent duplicate markers
         const seenIds = new Set();
         data.elements.forEach(poi => {
             if (seenIds.has(poi.id)) return;
@@ -967,6 +1001,35 @@ function getCategoryForElement(element) {
         }
     }
     return null;
+}
+
+// Helper to compile optimized QL statements using regex tag filters
+function getQLStatementsForCategory(category, scope) {
+    const statements = [];
+    if (category === 'food') {
+        statements.push(`node["amenity"~"restaurant|food_court"]${scope};`);
+    } else if (category === 'cafe') {
+        statements.push(`node["amenity"="cafe"]${scope};`);
+    } else if (category === 'shop') {
+        statements.push(`node["shop"~"supermarket|convenience|mall"]${scope};`);
+    } else if (category === 'luxury') {
+        statements.push(`node["leisure"="spa"]${scope};`);
+        statements.push(`node["amenity"="spa"]${scope};`);
+        statements.push(`node["tourism"="spa"]${scope};`);
+    } else if (category === 'landmark') {
+        statements.push(`node["historic"~"monument|memorial|castle"]${scope};`);
+        statements.push(`node["tourism"="viewpoint"]${scope};`);
+    } else if (category === 'nature') {
+        statements.push(`node["leisure"="park"]${scope};`);
+        statements.push(`node["tourism"~"camp_site|picnic_site"]${scope};`);
+        statements.push(`node["natural"="beach"]${scope};`);
+    } else if (category === 'nightlife') {
+        statements.push(`node["amenity"~"pub|bar|nightclub"]${scope};`);
+    } else if (category === 'adventure') {
+        statements.push(`node["leisure"~"theme_park|playground"]${scope};`);
+        statements.push(`node["tourism"="zoo"]${scope};`);
+    }
+    return statements;
 }
 
 function createPOIMarker(poi, category) {
