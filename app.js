@@ -943,7 +943,7 @@ async function explorePlaces() {
 
     } catch (error) {
         console.error('Error fetching POIs:', error);
-        alert('Error fetching places. Please try again.');
+        alert('Error: ' + error.message + '\n' + (error.stack ? error.stack.split('\n').slice(0, 3).join('\n') : ''));
     } finally {
         btn.innerHTML = '<span>✨</span> Explore Places';
         btn.disabled = false;
