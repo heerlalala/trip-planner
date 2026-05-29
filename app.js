@@ -1805,34 +1805,56 @@ function renderTravelCostsAndAIAdvice() {
     if (state.route.stops.length >= 2 && distance > 0) {
         costPanel.style.display = 'block';
 
-        // CAR ESTIMATES
-        const carFuel = Math.round(distance * 9.5);
-        const carToll = Math.round(distance * 1.5);
-        const carCost = carFuel + carToll;
-        const carDurationHours = state.route.actualDuration ? (state.route.actualDuration / 3600) : (distance / 65);
-        const carPercent = Math.round((carCost / budget) * 100);
-        const carDisplayPercent = Math.max(1, Math.min(100, carPercent));
+        const stops = state.route.stops;
+        const startName = stops.length > 0 ? (stops[0].name || "").toLowerCase() : "";
+        const endName = stops.length > 0 ? (stops[stops.length - 1].name || "").toLowerCase() : "";
 
-        // TRAIN ESTIMATES
-        const trainSL = Math.round(120 + distance * 1.1);
-        const train3AC = Math.round(380 + distance * 2.8);
-        const trainCost = budget < 12000 ? trainSL : train3AC;
-        const trainDurationHours = (distance / 50) + 1;
-        const trainPercent = Math.round((trainCost / budget) * 100);
-        const trainDisplayPercent = Math.max(1, Math.min(100, trainPercent));
+        // Popular Route Override Checker
+        let hasOverride = false;
+        let overrideData = null;
 
-        // BUS ESTIMATES
-        const busCost = Math.round(180 + distance * 3.2);
-        const busDurationHours = (distance / 45) + 0.5;
-        const busPercent = Math.round((busCost / budget) * 100);
-        const busDisplayPercent = Math.max(1, Math.min(100, busPercent));
+        const isRoute = (cityA, cityB) => {
+            return (startName.includes(cityA) && endName.includes(cityB)) || 
+                   (startName.includes(cityB) && endName.includes(cityA));
+        };
 
-        // FLIGHT ESTIMATES
-        const hasFlight = distance >= 250;
-        const flightCost = hasFlight ? Math.round(3200 + distance * 5.5) : 0;
-        const flightDurationHours = hasFlight ? (1.5 + distance / 650) : 0;
-        const flightPercent = hasFlight ? Math.round((flightCost / budget) * 100) : 0;
-        const flightDisplayPercent = Math.max(1, Math.min(100, flightPercent));
+        if (isRoute("mumbai", "pune")) {
+            hasOverride = true;
+            overrideData = {
+                carCost: 2600, // Sedan cab outstation
+                carFuel: 1200, carToll: 240, carDurationHours: 3.5,
+                trainSL: 175, train3AC: 505, trainVB: 560, trainDurationHours: 3.0,
+                busCost: 450, busSL: 750, busDurationHours: 4.0,
+                hasFlight: false, flightCost: 0, flightDurationHours: 0
+            };
+        } else if (isRoute("mumbai", "goa")) {
+            hasOverride = true;
+            overrideData = {
+                carCost: 8900,
+                carFuel: 4800, carToll: 900, carDurationHours: 12.0,
+                trainSL: 420, train3AC: 1100, trainVB: 1600, trainDurationHours: 9.0,
+                busCost: 950, busSL: 2200, busDurationHours: 13.0,
+                hasFlight: true, flightCost: 3500, flightDurationHours: 1.2
+            };
+        } else if (isRoute("delhi", "jaipur")) {
+            hasOverride = true;
+            overrideData = {
+                carCost: 3400,
+                carFuel: 2100, carToll: 410, carDurationHours: 5.0,
+                trainSL: 240, train3AC: 680, trainVB: 890, trainDurationHours: 4.5,
+                busCost: 250, busSL: 850, busDurationHours: 5.5,
+                hasFlight: true, flightCost: 3100, flightDurationHours: 1.0
+            };
+        } else if (isRoute("jaipur", "udaipur")) {
+            hasOverride = true;
+            overrideData = {
+                carCost: 5200,
+                carFuel: 3200, carToll: 550, carDurationHours: 6.5,
+                trainSL: 310, train3AC: 820, trainVB: 1050, trainDurationHours: 6.0,
+                busCost: 350, busSL: 1100, busDurationHours: 7.0,
+                hasFlight: true, flightCost: 3600, flightDurationHours: 1.0
+            };
+        }
 
         // Formatter helpers
         const formatDuration = (hours) => {
@@ -1848,18 +1870,134 @@ function renderTravelCostsAndAIAdvice() {
             return '';
         };
 
+        let carCost, carDurationHours, carSubtext, carPercent, carDisplayPercent;
+        let trainCost, trainDurationHours, trainSubtext, trainPercent, trainDisplayPercent;
+        let busCost, busDurationHours, busSubtext, busPercent, busDisplayPercent, busIcon = '🚌';
+        let flightCost, flightDurationHours, flightSubtext, flightPercent, flightDisplayPercent, flightIcon = '✈️', hasFlight = false;
+
+        if (distance < 50) {
+            // --- LOCAL COMMUTE ---
+            // 1. Cab (Sedan)
+            const cabBase = 60;
+            const cabPerKm = 18;
+            const cabTimeMin = (distance / 25) * 60; // 25 km/h avg speed
+            carCost = Math.round(cabBase + distance * cabPerKm + cabTimeMin * 2);
+            carDurationHours = distance / 25;
+            carSubtext = `Sedan (Uber/Ola) | Incl. time charges`;
+            carPercent = Math.round((carCost / budget) * 100);
+            carDisplayPercent = Math.max(1, Math.min(100, carPercent));
+
+            // 2. Metro / Local Train
+            trainCost = distance <= 10 ? 10 : distance <= 20 ? 20 : distance <= 35 ? 35 : 60;
+            trainDurationHours = distance / 35; // 35 km/h avg
+            trainSubtext = `Local Train / Metro single ticket`;
+            trainPercent = Math.round((trainCost / budget) * 100);
+            trainDisplayPercent = Math.max(1, Math.min(100, trainPercent));
+
+            // 3. Auto Rickshaw (Tuk-Tuk)
+            busIcon = '🛺';
+            const rickBase = 23;
+            const rickPerKm = 15.3;
+            busCost = Math.round(rickBase + Math.max(0, distance - 1.5) * rickPerKm);
+            busDurationHours = distance / 20; // 20 km/h avg
+            busSubtext = `Standard Auto-Rickshaw fare (Base: ${formatINR(rickBase)})`;
+            busPercent = Math.round((busCost / budget) * 100);
+            busDisplayPercent = Math.max(1, Math.min(100, busPercent));
+
+            // 4. City Bus (BEST/AC)
+            flightIcon = '🚌';
+            const busOrd = distance <= 5 ? 5 : distance <= 12 ? 15 : distance <= 25 ? 25 : 45;
+            const busAC = distance <= 5 ? 10 : distance <= 12 ? 25 : distance <= 25 ? 40 : 60;
+            flightCost = busAC;
+            flightDurationHours = distance / 18; // 18 km/h avg
+            flightSubtext = `Ordinary: ${formatINR(busOrd)} | Express AC: ${formatINR(busAC)}`;
+            flightPercent = Math.round((flightCost / budget) * 100);
+            flightDisplayPercent = Math.max(1, Math.min(100, flightPercent));
+            hasFlight = true;
+        } else {
+            // --- LONG DISTANCE / OUTSTATION ---
+            if (hasOverride) {
+                // Use pre-researched override data
+                carCost = overrideData.carCost;
+                carDurationHours = overrideData.carDurationHours;
+                const selfDriveCost = overrideData.carFuel + overrideData.carToll + 1800; // 1 day Zoomcar base
+                carSubtext = `Cab Sedan: ${formatINR(carCost)} | Zoomcar: ${formatINR(selfDriveCost)}`;
+                carPercent = Math.round((carCost / budget) * 100);
+                carDisplayPercent = Math.max(1, Math.min(100, carPercent));
+
+                // Train
+                trainCost = budget < 12000 ? overrideData.trainSL : overrideData.train3AC;
+                trainDurationHours = overrideData.trainDurationHours;
+                trainSubtext = `SL: ${formatINR(overrideData.trainSL)} | 3AC: ${formatINR(overrideData.train3AC)} | Vande Bharat: ${formatINR(overrideData.trainVB)}`;
+                trainPercent = Math.round((trainCost / budget) * 100);
+                trainDisplayPercent = Math.max(1, Math.min(100, trainPercent));
+
+                // Bus
+                busCost = budget < 12000 ? overrideData.busCost : overrideData.busSL;
+                busDurationHours = overrideData.busDurationHours;
+                busSubtext = `Seater: ${formatINR(overrideData.busCost)} | AC Sleeper: ${formatINR(overrideData.busSL)}`;
+                busPercent = Math.round((busCost / budget) * 100);
+                busDisplayPercent = Math.max(1, Math.min(100, busPercent));
+
+                // Flight
+                hasFlight = overrideData.hasFlight;
+                flightCost = overrideData.flightCost;
+                flightDurationHours = overrideData.flightDurationHours;
+                flightSubtext = hasFlight ? `Economy Class (Advance Booking)` : `No direct flights`;
+                flightPercent = hasFlight ? Math.round((flightCost / budget) * 100) : 0;
+                flightDisplayPercent = Math.max(1, Math.min(100, flightPercent));
+            } else {
+                // Use general high-fidelity formulas
+                // 1. Cab vs Self-Drive
+                carCost = Math.round(distance * 11 + 350 + distance * 1.5);
+                carDurationHours = state.route.actualDuration ? (state.route.actualDuration / 3600) : (distance / 60);
+                const rentalDays = Math.ceil(distance / 300);
+                const selfDriveCost = Math.round(rentalDays * 1800 + distance * 7.5 + distance * 1.5);
+                carSubtext = `Cab Sedan: ${formatINR(carCost)} | Zoomcar (${rentalDays}d): ${formatINR(selfDriveCost)}`;
+                carPercent = Math.round((carCost / budget) * 100);
+                carDisplayPercent = Math.max(1, Math.min(100, carPercent));
+
+                // 2. Train (SL vs 3AC vs Vande Bharat)
+                const trainSL = Math.round(120 + distance * 0.55);
+                const train3AC = Math.round(350 + distance * 1.45);
+                const trainVB = Math.round(300 + distance * 2.25);
+                trainCost = budget < 12000 ? trainSL : train3AC;
+                trainDurationHours = (distance / 55) + 1;
+                trainSubtext = `SL: ${formatINR(trainSL)} | 3AC: ${formatINR(train3AC)} | Vande Bharat: ${formatINR(trainVB)}`;
+                trainPercent = Math.round((trainCost / budget) * 100);
+                trainDisplayPercent = Math.max(1, Math.min(100, trainPercent));
+
+                // 3. Bus (AC Sleeper vs Seater)
+                const busSeater = Math.round(150 + distance * 1.8);
+                const busSleeper = Math.round(300 + distance * 3.5);
+                busCost = budget < 12000 ? busSeater : busSleeper;
+                busDurationHours = (distance / 45) + 0.5;
+                busSubtext = `Seater: ${formatINR(busSeater)} | AC Sleeper: ${formatINR(busSleeper)}`;
+                busPercent = Math.round((busCost / budget) * 100);
+                busDisplayPercent = Math.max(1, Math.min(100, busPercent));
+
+                // 4. Flight
+                hasFlight = distance >= 250;
+                flightCost = hasFlight ? Math.round(3200 + (distance - 250) * 4.5) : 0;
+                flightDurationHours = hasFlight ? (1.2 + distance / 650) : 0;
+                flightSubtext = hasFlight ? `Economy flight ticket (Advance)` : `Not recommended (Distance &lt; 250 km)`;
+                flightPercent = hasFlight ? Math.round((flightCost / budget) * 100) : 0;
+                flightDisplayPercent = Math.max(1, Math.min(100, flightPercent));
+            }
+        }
+
         costContent.innerHTML = `
             <div class="transit-card">
                 <div class="transit-header">
                     <div class="transit-type">
                         <span class="transit-icon">🚗</span>
-                        <span class="transit-name">Self Drive / Cab</span>
+                        <span class="transit-name">${distance < 50 ? 'Ride-Hailing Cab' : 'Private Sedan / Cab'}</span>
                     </div>
                     <span class="transit-time">${formatDuration(carDurationHours)}</span>
                     <span class="transit-cost">${formatINR(carCost)}</span>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
-                    Fuel: ${formatINR(carFuel)} | Tolls: ${formatINR(carToll)}
+                    ${carSubtext}
                 </div>
                 <div class="transit-meter">
                     <div class="transit-meter-fill ${getMeterClass(carPercent)}" style="width: ${carDisplayPercent}%;"></div>
@@ -1870,13 +2008,13 @@ function renderTravelCostsAndAIAdvice() {
                 <div class="transit-header">
                     <div class="transit-type">
                         <span class="transit-icon">🚂</span>
-                        <span class="transit-name">Indian Railways</span>
+                        <span class="transit-name">${distance < 50 ? 'Metro / Local Train' : 'Indian Railways'}</span>
                     </div>
                     <span class="transit-time">${formatDuration(trainDurationHours)}</span>
                     <span class="transit-cost">${formatINR(trainCost)}</span>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
-                    Sleeper: ${formatINR(trainSL)} | 3AC: ${formatINR(train3AC)}
+                    ${trainSubtext}
                 </div>
                 <div class="transit-meter">
                     <div class="transit-meter-fill ${getMeterClass(trainPercent)}" style="width: ${trainDisplayPercent}%;"></div>
@@ -1886,14 +2024,14 @@ function renderTravelCostsAndAIAdvice() {
             <div class="transit-card">
                 <div class="transit-header">
                     <div class="transit-type">
-                        <span class="transit-icon">🚌</span>
-                        <span class="transit-name">Intercity Bus</span>
+                        <span class="transit-icon">${busIcon}</span>
+                        <span class="transit-name">${distance < 50 ? 'Auto-Rickshaw' : 'Intercity Bus'}</span>
                     </div>
                     <span class="transit-time">${formatDuration(busDurationHours)}</span>
                     <span class="transit-cost">${formatINR(busCost)}</span>
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
-                    AC Sleeper Seat / Luxury Multi-Axle
+                    ${busSubtext}
                 </div>
                 <div class="transit-meter">
                     <div class="transit-meter-fill ${getMeterClass(busPercent)}" style="width: ${busDisplayPercent}%;"></div>
@@ -1903,8 +2041,8 @@ function renderTravelCostsAndAIAdvice() {
             <div class="transit-card" style="${!hasFlight ? 'opacity: 0.5; pointer-events: none;' : ''}">
                 <div class="transit-header">
                     <div class="transit-type">
-                        <span class="transit-icon">✈️</span>
-                        <span class="transit-name">Commercial Flight</span>
+                        <span class="transit-icon">${flightIcon}</span>
+                        <span class="transit-name">${distance < 50 ? 'City AC Bus' : 'Commercial Flight'}</span>
                     </div>
                     ${hasFlight ? `
                         <span class="transit-time">${formatDuration(flightDurationHours)}</span>
@@ -1915,7 +2053,7 @@ function renderTravelCostsAndAIAdvice() {
                     `}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
-                    ${hasFlight ? 'Economy Class flight' : 'Not recommended (Distance &lt; 250 km)'}
+                    ${flightSubtext}
                 </div>
                 ${hasFlight ? `
                     <div class="transit-meter">
