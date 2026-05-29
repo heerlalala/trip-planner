@@ -60,6 +60,24 @@ const POI_TYPES = {
         color: '#22c55e',
         tags: ['tourism=hotel', 'tourism=guest_house', 'tourism=hostel'],
         name: 'Hotel'
+    },
+    nature: {
+        icon: '🌳',
+        color: '#10b981',
+        tags: ['leisure=park', 'tourism=camp_site', 'tourism=picnic_site', 'natural=beach'],
+        name: 'Nature & Parks'
+    },
+    nightlife: {
+        icon: '🍺',
+        color: '#f43f5e',
+        tags: ['amenity=pub', 'amenity=bar', 'amenity=nightclub'],
+        name: 'Nightlife'
+    },
+    adventure: {
+        icon: '🎡',
+        color: '#ec4899',
+        tags: ['leisure=theme_park', 'tourism=zoo', 'leisure=playground'],
+        name: 'Adventure'
     }
 };
 
@@ -93,7 +111,8 @@ const state = {
         originResults: [],
         destinationResults: []
     },
-    selectedCategories: new Set(['food', 'cafe', 'landmark']),
+    selectedCategories: new Set(['food', 'cafe', 'landmark', 'nature']),
+    selectedStyle: 'adventure',
     isAddingStop: false,
     currentOrigin: null,
     currentDestination: null
@@ -213,6 +232,22 @@ function initEventListeners() {
             hideSearchResults('origin');
             hideSearchResults('destination');
         }
+    });
+
+    // Travel style selectors
+    document.querySelectorAll('.style-option').forEach(option => {
+        option.addEventListener('click', () => {
+            document.querySelectorAll('.style-option').forEach(opt => opt.classList.remove('active'));
+            option.classList.add('active');
+            const radio = option.querySelector('input[type="radio"]');
+            radio.checked = true;
+            state.selectedStyle = radio.value;
+            
+            // Auto refresh travel costs and AI advice if it's active
+            if (document.getElementById('itinerary-panel').style.display !== 'none') {
+                renderTravelCostsAndAIAdvice();
+            }
+        });
     });
 
     // Duration controls
@@ -450,6 +485,12 @@ function handleBudgetChange(e) {
 
     // Filter visible POIs
     filterPOIsByBudget();
+
+    // Auto-update travel costs and AI advice if visible
+    const itineraryPanel = document.getElementById('itinerary-panel');
+    if (itineraryPanel && itineraryPanel.style.display !== 'none') {
+        renderTravelCostsAndAIAdvice();
+    }
 }
 
 function filterPOIsByBudget() {
@@ -638,7 +679,32 @@ function updateStopsList() {
     }).join('');
 }
 
-function updateRoute() {
+async function getOSRMRoute(coordinates) {
+    if (coordinates.length < 2) return null;
+    const coordsString = coordinates.map(c => `${c[1]},${c[0]}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            const route = data.routes[0];
+            const distanceKm = route.distance / 1000;
+            const durationSec = route.duration;
+            const geojson = route.geometry;
+            return {
+                coordinates: geojson.coordinates.map(c => [c[1], c[0]]),
+                distance: distanceKm,
+                duration: durationSec
+            };
+        }
+    } catch (e) {
+        console.error("OSRM routing failed, falling back to straight lines:", e);
+    }
+    return null;
+}
+
+async function updateRoute() {
     // Remove existing polyline
     if (state.route.polyline) {
         state.map.removeLayer(state.route.polyline);
@@ -647,19 +713,45 @@ function updateRoute() {
     // Need at least 2 stops for a route
     if (state.route.stops.length < 2) return;
 
-    // Create polyline from stops
+    // Create baseline straight polyline from stops as loading fallback
     const latlngs = state.route.stops.map(stop => [stop.lat, stop.lon]);
 
     state.route.polyline = L.polyline(latlngs, {
         color: '#6366f1',
         weight: 4,
-        opacity: 0.8,
-        dashArray: '10, 10',
+        opacity: 0.5,
+        dashArray: '5, 10',
         className: 'route-line-animated'
     }).addTo(state.map);
 
     // Fit map to show entire route
     state.map.fitBounds(state.route.polyline.getBounds().pad(0.1));
+
+    // Try OSRM routing
+    const osrmData = await getOSRMRoute(latlngs);
+    if (osrmData) {
+        state.map.removeLayer(state.route.polyline);
+        state.route.polyline = L.polyline(osrmData.coordinates, {
+            color: '#6366f1',
+            weight: 5,
+            opacity: 0.9,
+            className: 'route-line-animated'
+        }).addTo(state.map);
+
+        // Store real distance and duration
+        state.route.actualDistance = osrmData.distance;
+        state.route.actualDuration = osrmData.duration;
+    } else {
+        // Fallback
+        state.route.actualDistance = calculateRouteDistance();
+        state.route.actualDuration = null;
+    }
+
+    // Auto-update itinerary cost calculator if it's already visible
+    const itineraryPanel = document.getElementById('itinerary-panel');
+    if (itineraryPanel && itineraryPanel.style.display !== 'none') {
+        renderTravelCostsAndAIAdvice();
+    }
 }
 
 function enableAddStopMode() {
@@ -768,6 +860,9 @@ async function explorePlaces() {
 
         // Generate and display itinerary
         generateItinerary(searchPoints);
+
+        // Render travel costs and AI advice
+        renderTravelCostsAndAIAdvice();
 
     } catch (error) {
         console.error('Error fetching POIs:', error);
@@ -1103,6 +1198,327 @@ function getIntermediatePoints(from, to, numPoints) {
         });
     }
     return points;
+}
+
+// ========================================
+// TRAVEL COST & AI RECOMMENDATIONS
+// ========================================
+
+function renderTravelCostsAndAIAdvice() {
+    const costPanel = document.getElementById('cost-panel');
+    const costContent = document.getElementById('cost-content');
+    const aiCard = document.getElementById('ai-recommendation-card');
+    const aiContent = document.getElementById('ai-recommendation-content');
+
+    if (!costPanel || !costContent || !aiCard || !aiContent) return;
+
+    const distance = state.route.actualDistance || calculateRouteDistance() || 0;
+    const budget = state.trip.budget || 25000;
+    const style = state.selectedStyle || 'adventure';
+
+    // Show panels
+    aiCard.style.display = 'block';
+
+    if (state.route.stops.length >= 2 && distance > 0) {
+        costPanel.style.display = 'block';
+
+        // CAR ESTIMATES
+        const carFuel = Math.round(distance * 9.5);
+        const carToll = Math.round(distance * 1.5);
+        const carCost = carFuel + carToll;
+        const carDurationHours = state.route.actualDuration ? (state.route.actualDuration / 3600) : (distance / 65);
+        const carPercent = Math.round((carCost / budget) * 100);
+        const carDisplayPercent = Math.max(1, Math.min(100, carPercent));
+
+        // TRAIN ESTIMATES
+        const trainSL = Math.round(120 + distance * 1.1);
+        const train3AC = Math.round(380 + distance * 2.8);
+        const trainCost = budget < 12000 ? trainSL : train3AC;
+        const trainDurationHours = (distance / 50) + 1;
+        const trainPercent = Math.round((trainCost / budget) * 100);
+        const trainDisplayPercent = Math.max(1, Math.min(100, trainPercent));
+
+        // BUS ESTIMATES
+        const busCost = Math.round(180 + distance * 3.2);
+        const busDurationHours = (distance / 45) + 0.5;
+        const busPercent = Math.round((busCost / budget) * 100);
+        const busDisplayPercent = Math.max(1, Math.min(100, busPercent));
+
+        // FLIGHT ESTIMATES
+        const hasFlight = distance >= 250;
+        const flightCost = hasFlight ? Math.round(3200 + distance * 5.5) : 0;
+        const flightDurationHours = hasFlight ? (1.5 + distance / 650) : 0;
+        const flightPercent = hasFlight ? Math.round((flightCost / budget) * 100) : 0;
+        const flightDisplayPercent = Math.max(1, Math.min(100, flightPercent));
+
+        // Formatter helpers
+        const formatINR = (val) => '₹' + Math.round(val).toLocaleString('en-IN');
+        const formatDuration = (hours) => {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            if (h === 0) return `${m}m`;
+            return `${h}h ${m}m`;
+        };
+
+        const getMeterClass = (pct) => {
+            if (pct > 100) return 'danger';
+            if (pct > 70) return 'warning';
+            return '';
+        };
+
+        costContent.innerHTML = `
+            <div class="transit-card">
+                <div class="transit-header">
+                    <div class="transit-type">
+                        <span class="transit-icon">🚗</span>
+                        <span class="transit-name">Self Drive / Cab</span>
+                    </div>
+                    <span class="transit-time">${formatDuration(carDurationHours)}</span>
+                    <span class="transit-cost">${formatINR(carCost)}</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
+                    Fuel: ${formatINR(carFuel)} | Tolls: ${formatINR(carToll)}
+                </div>
+                <div class="transit-meter">
+                    <div class="transit-meter-fill ${getMeterClass(carPercent)}" style="width: ${carDisplayPercent}%;"></div>
+                </div>
+            </div>
+
+            <div class="transit-card">
+                <div class="transit-header">
+                    <div class="transit-type">
+                        <span class="transit-icon">🚂</span>
+                        <span class="transit-name">Indian Railways</span>
+                    </div>
+                    <span class="transit-time">${formatDuration(trainDurationHours)}</span>
+                    <span class="transit-cost">${formatINR(trainCost)}</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
+                    Sleeper: ${formatINR(trainSL)} | 3AC: ${formatINR(train3AC)}
+                </div>
+                <div class="transit-meter">
+                    <div class="transit-meter-fill ${getMeterClass(trainPercent)}" style="width: ${trainDisplayPercent}%;"></div>
+                </div>
+            </div>
+
+            <div class="transit-card">
+                <div class="transit-header">
+                    <div class="transit-type">
+                        <span class="transit-icon">🚌</span>
+                        <span class="transit-name">Intercity Bus</span>
+                    </div>
+                    <span class="transit-time">${formatDuration(busDurationHours)}</span>
+                    <span class="transit-cost">${formatINR(busCost)}</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
+                    AC Sleeper Seat / Luxury Multi-Axle
+                </div>
+                <div class="transit-meter">
+                    <div class="transit-meter-fill ${getMeterClass(busPercent)}" style="width: ${busDisplayPercent}%;"></div>
+                </div>
+            </div>
+
+            <div class="transit-card" style="${!hasFlight ? 'opacity: 0.5; pointer-events: none;' : ''}">
+                <div class="transit-header">
+                    <div class="transit-type">
+                        <span class="transit-icon">✈️</span>
+                        <span class="transit-name">Commercial Flight</span>
+                    </div>
+                    ${hasFlight ? `
+                        <span class="transit-time">${formatDuration(flightDurationHours)}</span>
+                        <span class="transit-cost">${formatINR(flightCost)}</span>
+                    ` : `
+                        <span class="transit-time">N/A</span>
+                        <span class="transit-cost">--</span>
+                    `}
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -4px;">
+                    ${hasFlight ? 'Economy Class flight' : 'Not recommended (Distance &lt; 250 km)'}
+                </div>
+                ${hasFlight ? `
+                    <div class="transit-meter">
+                        <div class="transit-meter-fill ${getMeterClass(flightPercent)}" style="width: ${flightDisplayPercent}%;"></div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    } else {
+        // Only 1 stop, or no stops
+        costPanel.style.display = 'none';
+        costContent.innerHTML = '';
+    }
+
+    // AI ADVICE GENERATION
+    // Determine the destination city name
+    const lastStop = state.route.stops.length > 0 ? state.route.stops[state.route.stops.length - 1] : state.currentDestination;
+    const destName = lastStop ? (lastStop.name || "") : "";
+    let city = "";
+    const nameLower = destName.toLowerCase();
+    if (nameLower.includes("mumbai")) city = "Mumbai";
+    else if (nameLower.includes("goa")) city = "Goa";
+    else if (nameLower.includes("pune")) city = "Pune";
+    else if (nameLower.includes("lonavala") || nameLower.includes("khandala")) city = "Lonavala";
+    else if (nameLower.includes("jaipur")) city = "Jaipur";
+    else if (nameLower.includes("udaipur")) city = "Udaipur";
+
+    // Build specific tips based on City & Style, or fallback to Style
+    let routeAdvice = "";
+    let spotlightTitle = "";
+    let spotlightAdvice = "";
+    let savingAdvice = "";
+
+    // 1. Route Advice
+    if (city === "Mumbai") {
+        routeAdvice = "Mumbai traffic can be intense. We recommend using local trains for north-south travel or booking a cab via the Bandra-Worli Sea Link to bypass congestion during peak hours.";
+    } else if (city === "Goa") {
+        routeAdvice = "Rent a scooter or car at the airport/station for the best Goa experience. Taxis are expensive and don't use meters. Avoid driving late on narrow unlit rural roads.";
+    } else if (city === "Pune") {
+        routeAdvice = "If driving from Mumbai, the Expressway route is beautiful. Within the city, use auto-rickshaws or rent a self-drive scooter to navigate Old Pune's narrow lanes.";
+    } else if (city === "Lonavala") {
+        routeAdvice = "Expect heavy fog and bumper-to-bumper traffic on weekends, especially during monsoons. Start early (by 6 AM) to enjoy the ghats peacefully.";
+    } else if (city === "Jaipur") {
+        routeAdvice = "Use e-rickshaws for short travel within the walled Pink City. For Amer Fort, hire an official guide at the main gate to bypass long ticketing and entry queues.";
+    } else if (city === "Udaipur") {
+        routeAdvice = "The old city lanes surrounding Lake Pichola are extremely narrow. Avoid taking cars there; walking, auto-rickshaws, or two-wheelers are your best options.";
+    } else {
+        // Generic fallback by Style
+        if (style === 'adventure') {
+            routeAdvice = "Adventure routes often feature rugged terrain. Ensure your vehicle has decent ground clearance, keep offline maps downloaded, and carry an emergency tire inflator.";
+        } else if (style === 'relaxed') {
+            routeAdvice = "Plan a relaxed pace with structured 20-minute rest breaks for every 2 hours of driving. Look for scenic bypasses instead of busy expressways.";
+        } else if (style === 'cultural') {
+            routeAdvice = "Look out for historic transit links, such as local passenger ferries or vintage toy trains, which offer an authentic cultural introduction to the region.";
+        } else { // foodie
+            routeAdvice = "Map your itinerary around iconic highway dhabas and historical street vendors. Avoid generic highway food courts to get the real local flavor.";
+        }
+    }
+
+    // 2. Spotlight Tips (City + Style match)
+    if (city === "Mumbai") {
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Coastal & Street Eats";
+            spotlightAdvice = "Indulge in fresh butter-pepper-garlic crab at Mahesh Lunch Home, classic Keema Pav at Britannia & Co., and spicy Vada Pav opposite Mithibai College.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: City Treks";
+            spotlightAdvice = "Rent a cycle in the early morning to explore Sanjay Gandhi National Park, or try sea kayaking at the Gateway of India during sunrise.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Heritage & Architecture";
+            spotlightAdvice = "Take a walking tour of the Gothic Revival structures in Fort, visit the Dr. Bhau Daji Lad Museum, and catch the evening prayers at Haji Ali Dargah.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Sunset & Sea Breeze";
+            spotlightAdvice = "Spend a peaceful evening sitting at Marine Drive, enjoy high tea at the Taj Mahal Palace Hotel, or take a ferry to the quiet Elephanta Caves.";
+        }
+    } else if (city === "Goa") {
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Goan Shacks & Spice";
+            spotlightAdvice = "Savor authentic Goan fish thali at Vinayak Family Restaurant in Assagao, try modern fusion at Gunpowder, and sip local Feni at Joseph Bar.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: Waterfalls & Reefs";
+            spotlightAdvice = "Go scuba diving at Grand Island, try windsurfing at Baga beach, or hike through Bhagwan Mahavir Sanctuary to the majestic Dudhsagar Falls.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Portuguese Heritage";
+            spotlightAdvice = "Wander through the colorful Latin Quarter of Fontainhas in Panaji, explore Old Goa's Basilica of Bom Jesus, and tour a Sahakari Spice Farm.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Serene Beaches";
+            spotlightAdvice = "Lounge on the quiet sands of Mandrem or Patnem beach, book an Ayurvedic massage, and watch the sunset from the ramparts of Cabo de Rama fort.";
+        }
+    } else if (city === "Pune") {
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Bakeries & Irani Cafes";
+            spotlightAdvice = "Grab warm Shrewsbury biscuits from Kayani Bakery, try Bun Maska and tea at Cafe Goodluck, and order a classic SPDP at Vaishali on FC Road.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: Fort Treks & Flights";
+            spotlightAdvice = "Trek up Sinhagad Fort early in the morning for hot pitla-bhakri, or book a weekend paragliding session in nearby Kamshet.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Maratha History";
+            spotlightAdvice = "Explore the historic Shaniwar Wada ruins, visit the majestic Aga Khan Palace, and see the Peshwa relics at the Raja Dinkar Kelkar Museum.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Parks & Zen Gardens";
+            spotlightAdvice = "Spend a quiet afternoon walking in the Pune Okayama Friendship Garden or enjoy a meditation session at the Osho International Meditation Resort.";
+        }
+    } else if (city === "Lonavala") {
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Fudge & Hot Pakodas";
+            spotlightAdvice = "Buy fresh chocolate walnut fudge at Cooper's, hot corn pakodas at Tiger Point, and traditional peanut chikki from Maganlal.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: Valley Hikes & Caves";
+            spotlightAdvice = "Hike up to Lohagad Fort, climb the rock cut stairs at Bhaja Caves, or attempt the Duke's Nose rappelling trek.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Ancient Cave Temples";
+            spotlightAdvice = "Explore the Karla Buddhist Caves dating back to the 2nd century BC, featuring the largest Hinayana chaityagriha in India.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Lakeside Camping";
+            spotlightAdvice = "Pitch a lakeside tent at Pawna Lake, enjoy a barbecue under the stars, or book a luxury spa villa overlooking Valvan Lake.";
+        }
+    } else if (city === "Jaipur") {
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Royal Thali & Street Bites";
+            spotlightAdvice = "Dine at Chokhi Dhani for an immersive Rajasthani thali, grab spicy Pyaz Kachori at Rawat Mishtan Bhandar, and drink creamy sweet lassi from Lassiwala.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: Ballooning & Zips";
+            spotlightAdvice = "Book a hot air balloon flight over Amer Fort at sunrise, or go zip-lining over the valleys of Neemrana Fort.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Palace Marvels";
+            spotlightAdvice = "Explore the cosmic instruments at Jantar Mantar, photograph the facade of Hawa Mahal, and admire the mirror-work at Sheesh Mahal in Amer.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Courtyard High Tea";
+            spotlightAdvice = "Sip royalty-themed cocktails at Bar Palladio, walk around the peaceful gardens of Sisodia Rani Palace, and enjoy folk music at Albert Hall Museum.";
+        }
+    } else if (city === "Udaipur") {
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Mewari Culinary Secrets";
+            spotlightAdvice = "Try the tender Lal Maas at Ambrai overlooking the lake, enjoy local Dal Baati Churma at Krishna Dal Bati, and have cold coffee at Fatehsagar lake.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: Hill Climbs & Boating";
+            spotlightAdvice = "Take a speed boat ride around Lake Pichola, ride the ropeway to Karni Mata temple, or hike up to the Monsoon Palace (Sajjangarh) at sunset.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Haveli Puppet Shows";
+            spotlightAdvice = "Attend the evening Dharohar folk dance and puppet show at Bagore-ki-Haveli, and admire the detailed stone carvings of Jagdish Temple.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Lake-View Leisure";
+            spotlightAdvice = "Stroll through the fountains of Saheliyon-ki-Bari, read a book at a lakeside cafe, or take a vintage car ride around the City Palace grounds.";
+        }
+    } else {
+        // Fallback by Style only
+        if (style === 'foodie') {
+            spotlightTitle = "🍕 Foodie Spotlight: Local Food Trails";
+            spotlightAdvice = "Ask locals where they get breakfast! Prioritize heritage eateries, family-run cafes, and high-rated street vendors over standard hotel buffets.";
+        } else if (style === 'adventure') {
+            spotlightTitle = "🧗 Adventure Spotlight: Active Exploring";
+            spotlightAdvice = "Search for local trailheads, outdoor recreational parks, and natural viewpoints. Check weather patterns to ensure safe hiking.";
+        } else if (style === 'cultural') {
+            spotlightTitle = "🎨 Cultural Spotlight: Artisan Markets & History";
+            spotlightAdvice = "Visit the local government museum or artisan handicraft market. Hiring a certified local guide can double your appreciation of historic monuments.";
+        } else { // relaxed
+            spotlightTitle = "🏖️ Relaxed Spotlight: Scenic Leisure";
+            spotlightAdvice = "Keep your itinerary simple. Focus on one major attraction in the morning, followed by a quiet afternoon at a park, lake, or wellness café.";
+        }
+    }
+
+    // 3. Saving Advice (based on budget limit)
+    if (budget < 12000) {
+        savingAdvice = `With a budget of ${formatINR(budget)}, maximize savings by traveling via Train Sleeper class or public AC buses. Stay in highly-rated hostels, eat street food (hygienic options), and look for student or group discounts for monument tickets.`;
+    } else if (budget >= 12000 && budget < 25000) {
+        savingAdvice = `A budget of ${formatINR(budget)} is perfect for a balanced trip. Renting a shared car or booking 3AC trains will keep you comfortable. Consider booking boutique homestays or mid-range hotels online in advance to capture early-bird deals.`;
+    } else {
+        savingAdvice = `Your premium budget of ${formatINR(budget)} allows for maximum luxury. Consider booking direct flights or private cabs for convenient transit. Indulge in heritage luxury resorts, fine-dining food walks, and exclusive curated day-tours.`;
+    }
+
+    // Output AI Advice HTML
+    aiContent.innerHTML = `
+        <div class="ai-block route">
+            <div class="ai-block-title">🧭 Local Route Insights</div>
+            <div class="ai-block-text">${routeAdvice}</div>
+        </div>
+        <div class="ai-block spotlight">
+            <div class="ai-block-title">${spotlightTitle}</div>
+            <div class="ai-block-text">${spotlightAdvice}</div>
+        </div>
+        <div class="ai-block saving">
+            <div class="ai-block-title">💰 Smart Saving Tips</div>
+            <div class="ai-block-text">${savingAdvice}</div>
+        </div>
+    `;
 }
 
 // ========================================

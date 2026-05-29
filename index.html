@@ -88,6 +88,36 @@
           </div>
         </div>
 
+        <!-- Travel Style Card -->
+        <div class="glass-card style-card">
+          <div class="glass-card-header">
+            <div class="icon">🎭</div>
+            <h3>Travel Style</h3>
+          </div>
+          <div class="style-selectors">
+            <label class="style-option active" data-style="adventure">
+              <input type="radio" name="travel-style" value="adventure" checked>
+              <span class="style-icon">🧗</span>
+              <span class="style-label">Adventure</span>
+            </label>
+            <label class="style-option" data-style="relaxed">
+              <input type="radio" name="travel-style" value="relaxed">
+              <span class="style-icon">🏖️</span>
+              <span class="style-label">Relaxed</span>
+            </label>
+            <label class="style-option" data-style="cultural">
+              <input type="radio" name="travel-style" value="cultural">
+              <span class="style-icon">🎨</span>
+              <span class="style-label">Cultural</span>
+            </label>
+            <label class="style-option" data-style="foodie">
+              <input type="radio" name="travel-style" value="foodie">
+              <span class="style-icon">🍕</span>
+              <span class="style-label">Foodie</span>
+            </label>
+          </div>
+        </div>
+
         <!-- Route Stops -->
         <div class="glass-card">
           <div class="glass-card-header">
@@ -168,6 +198,21 @@
               <span class="poi-icon">🏨</span>
               <span class="poi-label">Hotels</span>
             </label>
+            <label class="poi-category active" data-category="nature">
+              <input type="checkbox" checked>
+              <span class="poi-icon">🌳</span>
+              <span class="poi-label">Nature</span>
+            </label>
+            <label class="poi-category" data-category="nightlife">
+              <input type="checkbox">
+              <span class="poi-icon">🍺</span>
+              <span class="poi-label">Nightlife</span>
+            </label>
+            <label class="poi-category" data-category="adventure">
+              <input type="checkbox">
+              <span class="poi-icon">🎡</span>
+              <span class="poi-label">Adventure</span>
+            </label>
           </div>
         </div>
 
@@ -184,6 +229,28 @@
           </div>
           <div id="itinerary-content" class="itinerary-content">
             <!-- Itinerary will be generated here -->
+          </div>
+        </div>
+
+        <!-- Cost Estimator Panel -->
+        <div class="glass-card cost-panel" id="cost-panel" style="display: none;">
+          <div class="glass-card-header">
+            <div class="icon">🎟️</div>
+            <h3>Travel Cost Estimator</h3>
+          </div>
+          <div id="cost-content" class="cost-content">
+            <!-- Cost estimations by method will be generated here -->
+          </div>
+        </div>
+
+        <!-- AI Personal Coach Panel -->
+        <div class="glass-card ai-recommendation-card" id="ai-recommendation-card" style="display: none;">
+          <div class="glass-card-header">
+            <div class="icon">🤖</div>
+            <h3>AI Personal Coach</h3>
+          </div>
+          <div id="ai-recommendation-content" class="ai-recommendation-content">
+            <!-- AI personalized tips will be generated here -->
           </div>
         </div>
       </div>
@@ -229,6 +296,21 @@
             <input type="checkbox">
             <span class="checkbox-icon" style="background: var(--accent-green);">🏨</span>
             <span>Hotels</span>
+          </label>
+          <label class="widget-checkbox" data-category="nature">
+            <input type="checkbox" checked>
+            <span class="checkbox-icon" style="background: var(--poi-nature);">🌳</span>
+            <span>Nature & Parks</span>
+          </label>
+          <label class="widget-checkbox" data-category="nightlife">
+            <input type="checkbox">
+            <span class="checkbox-icon" style="background: var(--poi-nightlife);">🍺</span>
+            <span>Nightlife</span>
+          </label>
+          <label class="widget-checkbox" data-category="adventure">
+            <input type="checkbox">
+            <span class="checkbox-icon" style="background: var(--poi-adventure);">🎡</span>
+            <span>Adventure</span>
           </label>
         </div>
       </div>

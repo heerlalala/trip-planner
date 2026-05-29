@@ -40,6 +40,9 @@
     --poi-shop: #3b82f6;
     --poi-luxury: #a855f7;
     --poi-landmark: #06b6d4;
+    --poi-nature: #10b981;
+    --poi-nightlife: #f43f5e;
+    --poi-adventure: #ec4899;
 
     /* Effects */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -1862,4 +1865,190 @@ h4 {
     to {
         stroke-dashoffset: -20;
     }
+}
+
+/* ========================================
+   TRAVEL STYLE SELECTOR
+======================================== */
+.style-selectors {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+}
+
+.style-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-elevated);
+    border: 1px solid transparent;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.style-option:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.style-option.active {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: var(--primary);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+
+.style-option input {
+    display: none;
+}
+
+.style-icon {
+    font-size: 1.1rem;
+}
+
+.style-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.style-option.active .style-label {
+    color: var(--text-primary);
+}
+
+/* ========================================
+   TRAVEL COST ESTIMATOR
+======================================== */
+.cost-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.transit-card {
+    background: var(--bg-elevated);
+    border-radius: var(--border-radius-md);
+    padding: var(--space-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    transition: all var(--transition-fast);
+}
+
+.transit-card:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.transit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.transit-type {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.transit-icon {
+    font-size: 1.25rem;
+}
+
+.transit-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.transit-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
+    border-radius: 99px;
+}
+
+.transit-cost {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent-green);
+}
+
+/* Cost indicator progress bar relative to budget limit */
+.transit-meter {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 99px;
+    overflow: hidden;
+    position: relative;
+}
+
+.transit-meter-fill {
+    height: 100%;
+    background: var(--primary-light);
+    border-radius: 99px;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.transit-meter-fill.warning {
+    background: var(--accent-orange);
+}
+
+.transit-meter-fill.danger {
+    background: var(--budget-luxury);
+}
+
+/* ========================================
+   AI PERSONAL COACH
+======================================== */
+.ai-recommendation-card {
+    border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    background: linear-gradient(145deg, rgba(26, 26, 46, 0.8), rgba(15, 15, 26, 0.95)) !important;
+}
+
+.ai-recommendation-content {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.ai-block {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--border-radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    border-left: 3px solid var(--accent);
+}
+
+.ai-block-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.ai-block-text {
+    color: var(--text-secondary);
+}
+
+.ai-block.route {
+    border-left-color: var(--primary-light);
+}
+
+.ai-block.spotlight {
+    border-left-color: var(--accent-gold);
+}
+
+.ai-block.saving {
+    border-left-color: var(--accent-green);
 }
