@@ -11,7 +11,7 @@ const CONFIG = {
         attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
     },
     search: {
-        debounceMs: 100,  // Reduced for faster search
+        debounceMs: 700,  // Restored to 700ms to comply with Nominatim usage policy and prevent IP blocks
         nominatimUrl: 'https://nominatim.openstreetmap.org/search'
     },
     overpass: {
@@ -218,13 +218,43 @@ function initEventListeners() {
 
     // Origin search
     const originInput = document.getElementById('origin-search');
-    originInput.addEventListener('input', debounce((e) => handleSearch(e, 'origin'), CONFIG.search.debounceMs));
+    const debouncedOriginSearch = debounce((e) => handleSearch(e, 'origin'), CONFIG.search.debounceMs);
+    originInput.addEventListener('input', (e) => debouncedOriginSearch(e));
     originInput.addEventListener('focus', () => showSearchResults('origin'));
+    originInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            executeImmediateSearch(originInput, 'origin');
+        }
+    });
+    originInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            hideSearchResults('origin');
+            if (originInput.value.trim() && (!state.currentOrigin || state.currentOrigin.name !== originInput.value.trim())) {
+                executeImmediateSearch(originInput, 'origin', false);
+            }
+        }, 300);
+    });
 
     // Destination search
     const destinationInput = document.getElementById('destination-search');
-    destinationInput.addEventListener('input', debounce((e) => handleSearch(e, 'destination'), CONFIG.search.debounceMs));
+    const debouncedDestinationSearch = debounce((e) => handleSearch(e, 'destination'), CONFIG.search.debounceMs);
+    destinationInput.addEventListener('input', (e) => debouncedDestinationSearch(e));
     destinationInput.addEventListener('focus', () => showSearchResults('destination'));
+    destinationInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            executeImmediateSearch(destinationInput, 'destination');
+        }
+    });
+    destinationInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            hideSearchResults('destination');
+            if (destinationInput.value.trim() && (!state.currentDestination || state.currentDestination.name !== destinationInput.value.trim())) {
+                executeImmediateSearch(destinationInput, 'destination', false);
+            }
+        }, 300);
+    });
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', (e) => {
@@ -338,9 +368,15 @@ async function handleSearch(e, type = 'destination') {
         return;
     }
 
+    // Show loading indicator
+    const wrapper = e.target.closest('.search-input-wrapper');
+    const icon = wrapper ? wrapper.querySelector('.search-icon') : null;
+    const originalEmoji = type === 'origin' ? '🟢' : '🔴';
+    if (icon) icon.textContent = '⏳';
+
     try {
         const response = await fetch(
-            `${CONFIG.search.nominatimUrl}?format=json&q=${encodeURIComponent(query)}&limit=5`
+            `${CONFIG.search.nominatimUrl}?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
         );
         const results = await response.json();
 
@@ -352,6 +388,43 @@ async function handleSearch(e, type = 'destination') {
         displaySearchResults(results, type);
     } catch (error) {
         console.error('Search error:', error);
+    } finally {
+        if (icon) icon.textContent = originalEmoji;
+    }
+}
+
+async function executeImmediateSearch(inputElement, type, shouldFly = true) {
+    const query = inputElement.value.trim();
+    if (query.length < 3) return;
+
+    // Show loading indicator
+    const wrapper = inputElement.closest('.search-input-wrapper');
+    const icon = wrapper ? wrapper.querySelector('.search-icon') : null;
+    const originalEmoji = type === 'origin' ? '🟢' : '🔴';
+    if (icon) icon.textContent = '⏳';
+
+    try {
+        const response = await fetch(
+            `${CONFIG.search.nominatimUrl}?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
+        );
+        const results = await response.json();
+
+        if (type === 'origin') {
+            state.search.originResults = results;
+        } else {
+            state.search.destinationResults = results;
+        }
+
+        displaySearchResults(results, type);
+
+        // Auto-select first result
+        if (results.length > 0) {
+            selectLocation(results[0], type, shouldFly);
+        }
+    } catch (error) {
+        console.error('Search error:', error);
+    } finally {
+        if (icon) icon.textContent = originalEmoji;
     }
 }
 
@@ -402,7 +475,7 @@ function hideSearchResults(type = 'destination') {
     document.getElementById(containerId).style.display = 'none';
 }
 
-function selectLocation(result, type = 'destination') {
+function selectLocation(result, type = 'destination', shouldFly = true) {
     const lat = parseFloat(result.lat);
     const lon = parseFloat(result.lon);
     const name = result.display_name.split(',')[0];
@@ -423,7 +496,9 @@ function selectLocation(result, type = 'destination') {
         }
 
         // Pan to show the origin
-        state.map.flyTo([lat, lon], 13, { duration: 1.5 });
+        if (shouldFly) {
+            state.map.flyTo([lat, lon], 13, { duration: 1.5 });
+        }
     } else {
         // Handle destination selection
         state.currentDestination = { lat, lon, name };
@@ -442,7 +517,9 @@ function selectLocation(result, type = 'destination') {
         }
 
         // Pan to location
-        state.map.flyTo([lat, lon], 13, { duration: 1.5 });
+        if (shouldFly) {
+            state.map.flyTo([lat, lon], 13, { duration: 1.5 });
+        }
     }
 }
 
