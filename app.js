@@ -1797,6 +1797,8 @@ function renderTravelCostsAndAIAdvice() {
     const budget = state.trip.budget || 25000;
     const style = state.selectedStyle || 'adventure';
 
+    const formatINR = (val) => '₹' + Math.round(val).toLocaleString('en-IN');
+
     // Show panels
     aiCard.style.display = 'block';
 
@@ -1833,7 +1835,6 @@ function renderTravelCostsAndAIAdvice() {
         const flightDisplayPercent = Math.max(1, Math.min(100, flightPercent));
 
         // Formatter helpers
-        const formatINR = (val) => '₹' + Math.round(val).toLocaleString('en-IN');
         const formatDuration = (hours) => {
             const h = Math.floor(hours);
             const m = Math.round((hours - h) * 60);
